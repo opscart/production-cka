@@ -1,0 +1,21 @@
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# Temporary files
+*.tmp
+*.bak
+*~
+
+# Kubernetes configs (don't commit)
+kubeconfig
+*.kubeconfig
+
+# Lab solutions (students should do themselves)
+**/solution/
+
+# Personal notes
+notes.md
