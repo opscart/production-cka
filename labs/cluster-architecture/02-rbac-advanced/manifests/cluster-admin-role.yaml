@@ -1,0 +1,12 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: platform-admin
+rules:
+# Full access to all resources in all namespaces
+- apiGroups: ["*"]
+  resources: ["*"]
+  verbs: ["*"]
+# Full access to cluster-scoped resources
+- nonResourceURLs: ["*"]
+  verbs: ["*"]

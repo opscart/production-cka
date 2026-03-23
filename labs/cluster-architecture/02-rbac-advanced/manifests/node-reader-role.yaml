@@ -1,0 +1,15 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: node-reader
+rules:
+# Read access to nodes only
+- apiGroups: [""]
+  resources:
+    - nodes
+  verbs: ["get", "list", "watch"]
+# Read node metrics (if metrics-server is installed)
+- apiGroups: ["metrics.k8s.io"]
+  resources:
+    - nodes
+  verbs: ["get", "list"]
