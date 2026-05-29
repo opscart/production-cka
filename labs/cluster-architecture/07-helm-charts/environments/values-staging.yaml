@@ -1,0 +1,13 @@
+replicaCount: 2
+image:
+  tag: "1.0.0"
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 250m
+    memory: 256Mi
+config:
+  ENVIRONMENT: "staging"
+  LOG_LEVEL: "info"

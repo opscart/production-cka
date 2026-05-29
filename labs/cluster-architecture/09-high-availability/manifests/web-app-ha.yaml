@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-app-ha
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: web-app-ha
+  template:
+    metadata:
+      labels:
+        app: web-app-ha
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app: web-app-ha
+              topologyKey: kubernetes.io/hostname
+      containers:
+      - name: web-app
+        image: nginx
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi

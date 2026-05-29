@@ -1,0 +1,13 @@
+apiVersion: v2
+name: pharma-app
+description: A Helm chart for pharmaceutical microservices
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+keywords:
+  - pharmaceutical
+  - microservice
+maintainers:
+  - name: Shamsher Khan
+    email: shamsher@opscart.com
+    url: https://opscart.com
