@@ -20,3 +20,5 @@ kubeconfig
 # Personal notes
 notes.md
 COURSE-STRATEGY.md  labs/cluster-architecture/11-api-server-auth/certs/
+COURSE-STRATEGY.md
+labs/cluster-architecture/11-api-server-auth/certs/
