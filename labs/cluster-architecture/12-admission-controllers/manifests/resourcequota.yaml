@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: lab12-quota
+  namespace: lab12-admission
+spec:
+  hard:
+    pods: "5"
+    requests.cpu: "1"
+    requests.memory: 1Gi
+    limits.cpu: "2"
+    limits.memory: 2Gi
+    configmaps: "10"
+    secrets: "10"
+    services: "5"

@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: auth-demo-pod
+  namespace: lab11-auth
+spec:
+  serviceAccountName: auth-demo-sa
+  containers:
+  - name: demo
+    image: nginx
+    command: ["sleep", "3600"]
