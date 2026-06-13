@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-node1
+  namespace: lab15-cni
+spec:
+  nodeSelector:
+    kubernetes.io/hostname: opscart
+  containers:
+  - name: net-test
+    image: busybox
+    command: ["sleep", "3600"]
