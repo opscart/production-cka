@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: monitoring-pod
+  namespace: lab13-sa
+spec:
+  serviceAccountName: monitoring-sa
+  containers:
+  - name: monitor
+    image: nginx
+    command: ["sleep", "3600"]

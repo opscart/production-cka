@@ -1,0 +1,10 @@
+apiVersion: ops.example.com/v1
+kind: BackupPolicy
+metadata:
+  name: config-backup
+  namespace: lab14-crds
+spec:
+  schedule: "0 */6 * * *"
+  retentionDays: 7
+  target: "app-config"
+  enabled: true

@@ -1,0 +1,10 @@
+apiVersion: ops.example.com/v1
+kind: BackupPolicy
+metadata:
+  name: database-backup
+  namespace: lab14-crds
+spec:
+  schedule: "0 2 * * *"
+  retentionDays: 30
+  target: "postgres-db"
+  enabled: true
