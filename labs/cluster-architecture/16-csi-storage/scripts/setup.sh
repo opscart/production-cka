@@ -1,168 +1,128 @@
 #!/bin/bash
-# Lab 16: CSI Storage - Test Script
+# Lab 16: CSI Storage - Setup Script
 
 set -e
 
-echo "🧪 Lab 16: CSI Storage Tests"
+echo "🔧 Lab 16: CSI Storage Setup"
 echo "=============================="
 echo ""
 
 GREEN='\033[0;32m'
-RED='\033[0;31m'
-YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
 NAMESPACE="lab16-storage"
-passed=0
-total=0
 
-run_check() {
-    local name="$1"
-    local cmd="$2"
-    total=$((total + 1))
-    echo -ne "Checking $name... "
-    if eval "$cmd" &>/dev/null; then
-        echo -e "${GREEN}✓ PASS${NC}"
-        passed=$((passed + 1))
-    else
-        echo -e "${RED}✗ FAIL${NC}"
-    fi
-}
-
-echo -e "${BLUE}=== Storage Classes ===${NC}"
+echo -e "${BLUE}Step 1: Creating namespace...${NC}"
+kubectl create namespace $NAMESPACE 2>/dev/null || echo "Already exists"
+echo -e "${GREEN}✓ Namespace: $NAMESPACE${NC}"
 echo ""
 
-run_check "at least one StorageClass exists" \
-    "kubectl get sc --no-headers 2>/dev/null | grep -q . || \
-     minikube addons list 2>/dev/null | grep -q storage"
-
-# Check for default SC - may not exist on all clusters
-SC_DEFAULT=$(kubectl get sc -o jsonpath='{.items[?(@.metadata.annotations.storageclass\.kubernetes\.io/is-default-class=="true")].metadata.name}' 2>/dev/null)
-total=$((total + 1))
-echo -ne "Checking default StorageClass exists... "
-if [ -n "$SC_DEFAULT" ]; then
-    echo -e "${GREEN}✓ PASS${NC} ($SC_DEFAULT)"
-    passed=$((passed + 1))
-else
-    echo -e "${YELLOW}⚠️  SKIP${NC} (no default SC - enable with: minikube addons enable default-storageclass)"
-    passed=$((passed + 1))  # skip not fail
-fi
-
-echo ""
-echo -e "${BLUE}=== Static PersistentVolume ===${NC}"
-echo ""
-
-run_check "lab16-static-pv exists" \
-    "kubectl get pv lab16-static-pv"
-
-run_check "PV capacity is 1Gi" \
-    "kubectl get pv lab16-static-pv \
-     -o jsonpath='{.spec.capacity.storage}' | grep -q 1Gi"
-
-run_check "PV access mode is ReadWriteOnce" \
-    "kubectl get pv lab16-static-pv \
-     -o jsonpath='{.spec.accessModes[0]}' | grep -q ReadWriteOnce"
-
-run_check "PV reclaim policy is Retain" \
-    "kubectl get pv lab16-static-pv \
-     -o jsonpath='{.spec.persistentVolumeReclaimPolicy}' | grep -q Retain"
-
-run_check "PV storageClass is manual" \
-    "kubectl get pv lab16-static-pv \
-     -o jsonpath='{.spec.storageClassName}' | grep -q manual"
-
-echo ""
-echo -e "${BLUE}=== Static PVC ===${NC}"
+echo -e "${BLUE}Step 2: Creating static PersistentVolume...${NC}"
+cat > manifests/static-pv.yaml << 'PVEOF'
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: lab16-static-pv
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes:
+  - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  hostPath:
+    path: /data/lab16-static-pv
+  storageClassName: manual
+PVEOF
+kubectl apply -f manifests/static-pv.yaml
+echo -e "${GREEN}✓ PersistentVolume: lab16-static-pv${NC}"
 echo ""
 
-run_check "static-pvc exists" \
-    "kubectl get pvc static-pvc -n $NAMESPACE"
-
-run_check "static-pvc is Bound" \
-    "kubectl get pvc static-pvc -n $NAMESPACE \
-     -o jsonpath='{.status.phase}' | grep -q Bound"
-
-run_check "static-pvc bound to lab16-static-pv" \
-    "kubectl get pvc static-pvc -n $NAMESPACE \
-     -o jsonpath='{.spec.volumeName}' | grep -q lab16-static-pv"
-
-echo ""
-echo -e "${BLUE}=== Dynamic PVC ===${NC}"
-echo ""
-
-run_check "dynamic-pvc exists" \
-    "kubectl get pvc dynamic-pvc -n $NAMESPACE"
-
-# Dynamic PVC only works if default StorageClass exists
-DYNAMIC_STATUS=$(kubectl get pvc dynamic-pvc -n $NAMESPACE \
-  -o jsonpath='{.status.phase}' 2>/dev/null)
-
-total=$((total + 1))
-echo -ne "Checking dynamic-pvc is Bound... "
-if [ "$DYNAMIC_STATUS" = "Bound" ]; then
-    echo -e "${GREEN}✓ PASS${NC}"
-    passed=$((passed + 1))
-else
-    echo -e "${YELLOW}⚠️  SKIP${NC} (Pending - no default StorageClass. Run: minikube addons enable default-storageclass)"
-    passed=$((passed + 1))  # skip not fail
-fi
-
-total=$((total + 1))
-echo -ne "Checking dynamic PV was auto-created... "
-if kubectl get pv --no-headers 2>/dev/null | grep -v lab16-static-pv | grep -q Bound; then
-    echo -e "${GREEN}✓ PASS${NC}"
-    passed=$((passed + 1))
-else
-    echo -e "${YELLOW}⚠️  SKIP${NC} (no dynamic PV - requires default StorageClass)"
-    passed=$((passed + 1))  # skip not fail
-fi
-
-echo ""
-echo -e "${BLUE}=== Pod with Storage ===${NC}"
+echo -e "${BLUE}Step 3: Creating static PVC...${NC}"
+cat > manifests/static-pvc.yaml << 'PVCEOF'
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: static-pvc
+  namespace: lab16-storage
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: manual
+PVCEOF
+kubectl apply -f manifests/static-pvc.yaml
+echo -e "${GREEN}✓ PVC: static-pvc${NC}"
 echo ""
 
-run_check "storage-pod exists" \
-    "kubectl get pod storage-pod -n $NAMESPACE"
-
-run_check "storage-pod is Running" \
-    "kubectl get pod storage-pod -n $NAMESPACE \
-     -o jsonpath='{.status.phase}' | grep -q Running"
-
-run_check "storage-pod uses static-pvc" \
-    "kubectl get pod storage-pod -n $NAMESPACE \
-     -o jsonpath='{.spec.volumes[0].persistentVolumeClaim.claimName}' \
-     | grep -q static-pvc"
-
-run_check "volume is mounted at /data" \
-    "kubectl get pod storage-pod -n $NAMESPACE \
-     -o jsonpath='{.spec.containers[0].volumeMounts[0].mountPath}' \
-     | grep -q /data"
-
-run_check "data persists in volume" \
-    "kubectl exec storage-pod -n $NAMESPACE -- cat /data/test.txt | grep -q 'persistent'"
-
+echo -e "${BLUE}Step 4: Creating dynamic PVC...${NC}"
+cat > manifests/dynamic-pvc.yaml << 'DYNEOF'
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: dynamic-pvc
+  namespace: lab16-storage
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 500Mi
+DYNEOF
+kubectl apply -f manifests/dynamic-pvc.yaml
+echo -e "${GREEN}✓ PVC: dynamic-pvc${NC}"
 echo ""
+
+echo -e "${BLUE}Step 5: Waiting for PVCs to bind...${NC}"
+sleep 5
+
+STATUS=$(kubectl get pvc static-pvc -n $NAMESPACE \
+  -o jsonpath='{.status.phase}')
+echo "  static-pvc: $STATUS"
+
+STATUS=$(kubectl get pvc dynamic-pvc -n $NAMESPACE \
+  -o jsonpath='{.status.phase}')
+echo "  dynamic-pvc: $STATUS"
+echo ""
+
+echo -e "${BLUE}Step 6: Creating storage pod...${NC}"
+cat > manifests/storage-pod.yaml << 'PODEOF'
+apiVersion: v1
+kind: Pod
+metadata:
+  name: storage-pod
+  namespace: lab16-storage
+spec:
+  containers:
+  - name: app
+    image: nginx
+    volumeMounts:
+    - name: data-volume
+      mountPath: /data
+  volumes:
+  - name: data-volume
+    persistentVolumeClaim:
+      claimName: static-pvc
+PODEOF
+kubectl apply -f manifests/storage-pod.yaml
+kubectl wait --for=condition=ready pod/storage-pod \
+  -n $NAMESPACE --timeout=60s
+
+# Write test data
+kubectl exec storage-pod -n $NAMESPACE -- \
+  sh -c "echo 'persistent data test' > /data/test.txt"
+echo -e "${GREEN}✓ Pod: storage-pod (with data written)${NC}"
+echo ""
+
 echo "=============================="
-echo -e "Results: ${passed}/${total} checks passed"
+echo -e "${GREEN}✓ Setup complete!${NC}"
 echo ""
-
-if [ $passed -eq $total ]; then
-    echo -e "${GREEN}🎉 All checks passed! Lab 16 complete!${NC}"
-    echo ""
-    echo "PersistentVolumes:"
-    kubectl get pv
-    echo ""
-    echo "PersistentVolumeClaims:"
-    kubectl get pvc -n $NAMESPACE
-else
-    echo -e "${RED}Some checks failed${NC}"
-    echo ""
-    echo "Debug:"
-    kubectl get pv
-    kubectl get pvc -n $NAMESPACE
-    kubectl describe pvc -n $NAMESPACE
-fi
-
+echo "PersistentVolumes:"
+kubectl get pv | grep -E "NAME|lab16"
 echo ""
-echo "Cleanup: ./scripts/cleanup.sh"
+echo "PersistentVolumeClaims:"
+kubectl get pvc -n $NAMESPACE
+echo ""
+echo "Run: ./scripts/test.sh"
