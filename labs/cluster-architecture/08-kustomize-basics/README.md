@@ -12,22 +12,10 @@ Master Kustomize for managing Kubernetes configuration across multiple environme
 ## Time to Complete
 40 minutes
 
-## Scenario
-Your pharmaceutical company deploys the same application to 3 environments. With plain YAML you maintain 3 copies of every file. With Helm you need templates. Kustomize offers a third approach — **pure YAML with overlays**. No templates, no new syntax, just YAML patches.
-
-**The problem:**
-```
-Without Kustomize:           With Kustomize:
-───────────────────          ──────────────────
-dev/deployment.yaml          base/
-dev/service.yaml               deployment.yaml  (1 copy)
-staging/deployment.yaml        service.yaml     (1 copy)
-staging/service.yaml         overlays/
-prod/deployment.yaml           dev/
-prod/service.yaml              staging/
-(6 files, lots of duplication) prod/
-                             (base + small patches only)
-```
+## Prerequisites
+- Completed Labs 01-07
+- Running minikube cluster
+- Basic YAML knowledge
 
 ---
 
@@ -39,14 +27,14 @@ prod/service.yaml              staging/
 ├─────────────────┼──────────────────────┼──────────────────────┤
 │ Syntax          │ Pure YAML            │ Go templates         │
 │ Learning curve  │ Low                  │ Medium               │
-│ Templating      │ No (overlays)        │ Yes ({{ .Values }})  │
+│ Templating      │ No (overlays/patches)│ Yes ({{ .Values }})  │
 │ Built into      │ kubectl (built-in!)  │ Separate CLI         │
 │ Best for        │ Config variations    │ Complex apps         │
 │ CKA exam        │ kubectl -k flag      │ helm commands        │
 └─────────────────┴──────────────────────┴──────────────────────┘
 ```
 
-**Key insight:** Kustomize is built into `kubectl`! No installation needed.
+**Key insight:** Kustomize is built into `kubectl`! No extra installation needed.
 
 ```bash
 kubectl apply -k ./overlays/dev/    # -k = kustomize!
@@ -59,19 +47,16 @@ kubectl apply -k ./overlays/dev/    # -k = kustomize!
 ```
 kustomize-demo/
 ├── base/                        # Shared base configuration
-│   ├── kustomization.yaml       # Lists resources to include
+│   ├── kustomization.yaml
 │   ├── deployment.yaml
 │   └── service.yaml
 └── overlays/
     ├── dev/                     # Dev-specific patches
-    │   ├── kustomization.yaml
-    │   └── patch-replicas.yaml
+    │   └── kustomization.yaml
     ├── staging/
-    │   ├── kustomization.yaml
-    │   └── patch-replicas.yaml
+    │   └── kustomization.yaml
     └── prod/
-        ├── kustomization.yaml
-        └── patch-replicas.yaml
+        └── kustomization.yaml
 ```
 
 ---
@@ -80,65 +65,44 @@ kustomize-demo/
 
 ### Task 1: Understand Kustomize (5 min)
 
-**Objective:** Verify kustomize is available and understand its integration with kubectl.
-
 ```bash
-# Check kustomize version (built into kubectl)
-kubectl version --client
-
-# Standalone kustomize (also available)
-kustomize version
-
-# Check if kustomize is available
+# Verify kustomize is available (built into kubectl)
 kubectl kustomize --help
-```
 
-**Key commands:**
-```bash
-# Build/render kustomize output
-kubectl kustomize <dir>
-
-# Apply kustomize configuration
-kubectl apply -k <dir>
-
-# Delete kustomize resources
-kubectl delete -k <dir>
+# Key commands
+kubectl kustomize <dir>      # render without applying
+kubectl apply -k <dir>       # apply kustomize config
+kubectl delete -k <dir>      # delete kustomize resources
 ```
 
 ---
 
 ### Task 2: Create Base Configuration (10 min)
 
-**Objective:** Build the shared base manifests.
-
 ```bash
-# Create directory structure
 mkdir -p kustomize-demo/base
 mkdir -p kustomize-demo/overlays/{dev,staging,prod}
 cd kustomize-demo
-```
 
-**Create base deployment:**
-```bash
 cat > base/deployment.yaml << 'EOF'
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: pharma-api
+  name: web-app
   labels:
-    app: pharma-api
+    app: web-app
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: pharma-api
+      app: web-app
   template:
     metadata:
       labels:
-        app: pharma-api
+        app: web-app
     spec:
       containers:
-      - name: pharma-api
+      - name: web-app
         image: nginx:1.25
         ports:
         - containerPort: 80
@@ -150,57 +114,44 @@ spec:
             cpu: 200m
             memory: 256Mi
 EOF
-```
 
-**Create base service:**
-```bash
 cat > base/service.yaml << 'EOF'
 apiVersion: v1
 kind: Service
 metadata:
-  name: pharma-api
+  name: web-app
 spec:
   selector:
-    app: pharma-api
+    app: web-app
   ports:
   - port: 80
     targetPort: 80
   type: ClusterIP
 EOF
-```
 
-**Create base kustomization.yaml:**
-```bash
 cat > base/kustomization.yaml << 'EOF'
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-
 resources:
 - deployment.yaml
 - service.yaml
 EOF
-```
 
-**Verify base renders correctly:**
-```bash
+# Verify base renders
 kubectl kustomize base/
-# Should output both deployment and service YAML
 ```
 
 ---
 
 ### Task 3: Create Environment Overlays (15 min)
 
-**Objective:** Create overlays with environment-specific patches.
-
-#### Dev Overlay (1 replica, debug image tag)
-
 ```bash
+# Dev overlay - 1 replica, latest image, dev label
 cat > overlays/dev/kustomization.yaml << 'EOF'
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-bases:
+resources:
 - ../../base
 
 namePrefix: dev-
@@ -215,21 +166,20 @@ patches:
       value: nginx:latest
   target:
     kind: Deployment
-    name: pharma-api
+    name: web-app
 
-commonLabels:
-  environment: dev
+labels:
+- pairs:
+    environment: dev
+  includeSelectors: false
 EOF
-```
 
-#### Staging Overlay (2 replicas)
-
-```bash
+# Staging overlay - 2 replicas
 cat > overlays/staging/kustomization.yaml << 'EOF'
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-bases:
+resources:
 - ../../base
 
 namePrefix: staging-
@@ -241,21 +191,20 @@ patches:
       value: 2
   target:
     kind: Deployment
-    name: pharma-api
+    name: web-app
 
-commonLabels:
-  environment: staging
+labels:
+- pairs:
+    environment: staging
+  includeSelectors: false
 EOF
-```
 
-#### Production Overlay (3 replicas, NodePort)
-
-```bash
+# Prod overlay - 3 replicas, NodePort
 cat > overlays/prod/kustomization.yaml << 'EOF'
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-bases:
+resources:
 - ../../base
 
 namePrefix: prod-
@@ -267,34 +216,29 @@ patches:
       value: 3
   target:
     kind: Deployment
-    name: pharma-api
+    name: web-app
 - patch: |-
     - op: replace
       path: /spec/type
       value: NodePort
   target:
     kind: Service
-    name: pharma-api
+    name: web-app
 
-commonLabels:
-  environment: prod
+labels:
+- pairs:
+    environment: prod
+  includeSelectors: false
 EOF
-```
 
-**Verify overlays render correctly:**
-```bash
-# Check dev
+# Verify overlays render
 kubectl kustomize overlays/dev/
-
-# Check prod (should show 3 replicas, NodePort)
-kubectl kustomize overlays/prod/
+kubectl kustomize overlays/staging/
 ```
 
 ---
 
 ### Task 4: Deploy with Kustomize (10 min)
-
-**Objective:** Apply overlays to the cluster.
 
 ```bash
 # Deploy dev
@@ -303,42 +247,33 @@ kubectl get all -l environment=dev
 
 # Deploy staging
 kubectl apply -k overlays/staging/
-kubectl get all -l environment=staging
+kubectl get deployments | grep -E "dev-|staging-"
 
-# Verify different replica counts
-kubectl get deployments
-# dev-pharma-api:     1 replica
-# staging-pharma-api: 2 replicas
-```
-
-**Verify patches applied correctly:**
-```bash
-# Dev should have 1 replica
-kubectl get deploy dev-pharma-api -o jsonpath='{.spec.replicas}'
-
-# Staging should have 2 replicas
-kubectl get deploy staging-pharma-api -o jsonpath='{.spec.replicas}'
+# Verify different replicas
+kubectl get deployment dev-web-app     -o jsonpath='{.spec.replicas}'   # 1
+kubectl get deployment staging-web-app -o jsonpath='{.spec.replicas}'   # 2
 ```
 
 ---
 
-### Task 5: Update Base and Propagate (5 min)
+## ⚠️ Minikube-Specific Notes
 
-**Objective:** Change base and see it propagate to all environments.
-
-```bash
-# Update base image version
-# Edit base/deployment.yaml
-# Change: image: nginx:1.25
-# To:     image: nginx:1.26
-
-# Now render dev - should pick up new image
-kubectl kustomize overlays/dev/
-
-# Apply update to all environments
-kubectl apply -k overlays/dev/
-kubectl apply -k overlays/staging/
+### Deprecated: commonLabels
+Old syntax (still works but shows warning):
+```yaml
+commonLabels:
+  environment: dev
 ```
+
+New syntax (use this instead):
+```yaml
+labels:
+- pairs:
+    environment: dev
+  includeSelectors: false
+```
+
+The `includeSelectors: false` prevents Kustomize from adding the label to pod selectors, which would break existing deployments.
 
 ---
 
@@ -346,36 +281,45 @@ kubectl apply -k overlays/staging/
 
 ⏱️ **Time Management:**
 - Create base: 2 minutes
-- Create overlays: 2 minutes
-- Apply: 1 minute
-- **Total: ~5 minutes**
-
-🔑 **Key Commands:**
-```bash
-# Build (render without applying)
-kubectl kustomize <dir>
-
-# Apply
-kubectl apply -k <dir>
-
-# Delete
-kubectl delete -k <dir>
-```
+- Create overlay: 1 minute
+- Apply: 30 seconds
+- **Total: ~4 minutes**
 
 🎯 **Exam Question Patterns:**
 
-> *"Apply the kustomize configuration in /root/kustomize/overlays/prod"*
+> *"Apply the kustomize config in /root/kustomize/overlays/prod"*
+```bash
+kubectl apply -k /root/kustomize/overlays/prod
+```
 
-> *"Create a kustomize overlay that changes replicas to 3"*
+> *"Build the kustomize output to a file"*
+```bash
+kubectl kustomize overlays/prod > output.yaml
+```
 
-> *"Build the kustomize output and redirect to a file"*
+> *"Change the replica count to 3 in the prod overlay"*
+```yaml
+patches:
+- patch: |-
+    - op: replace
+      path: /spec/replicas
+      value: 3
+  target:
+    kind: Deployment
+    name: web-app
+```
 
 ---
 
 ## Common Issues
 
-### Issue 1: bases vs resources
+### Issue: commonLabels deprecated warning
+```
+Warning: 'commonLabels' is deprecated. Please use 'labels' instead.
+```
+**Fix:** Replace `commonLabels:` with the `labels:` block shown above.
 
+### Issue: bases vs resources
 ```yaml
 # Old syntax (still works)
 bases:
@@ -384,14 +328,6 @@ bases:
 # New syntax (preferred)
 resources:
 - ../../base
-```
-
-### Issue 2: Wrong directory
-
-```bash
-# Always run from the lab root
-kubectl kustomize overlays/dev/   # ✅
-kubectl kustomize dev/            # ❌ (wrong path)
 ```
 
 ---
