@@ -3,7 +3,7 @@
 **Kubernetes v1.35** | **70 Hands-On Labs** | **OpsCart Course**
 
 [![CKA Certified](https://img.shields.io/badge/CKA-2026-blue)](https://www.cncf.io/certification/cka/)
-[![Labs](https://img.shields.io/badge/Labs-70-green)](./COURSE-STRATEGY.md)
+[![Labs](https://img.shields.io/badge/Labs-70-green)](./PROGRESS.md)
 [![Progress](https://img.shields.io/badge/Progress-20%2F70-orange)](./PROGRESS.md)
 
 70 hands-on labs covering every CKA exam domain, built from real production experience managing 8+ AKS clusters for a Fortune 500 pharmaceutical company. Every lab ships with automated setup/test/cleanup scripts, exam tips, and documented platform limitations (minikube vs kubeadm vs cloud).
@@ -71,7 +71,7 @@ cat solutions/SOLUTION.md   # if stuck
 | Storage | 10% | 7 |
 | Troubleshooting | 30% | 20 |
 
-Full roadmap, study plan, and exam logistics → [COURSE-STRATEGY.md](./COURSE-STRATEGY.md)
+Detailed roadmap and study plan are kept in a local `COURSE-STRATEGY.md` (not published in this repo).
 
 ---
 
